@@ -10,7 +10,7 @@ This script generates systemd sysexts out of `/usr` or `/etc` trees, usually gen
 # First generate your /usr tree first with whatever tool you want
 sysextbuddy ./build/my-project --install # This will build and install your sysext to an ephemeral location
 ```
-```
+```bash
 $ sysextbuddy ./build/brew-proxy/ --install
 INFO: Sysext generated successfully at /var/home/tulip/opt/HastD/brew-proxy/brew-proxy.raw
 Using extensions 'brew-proxy.raw'.
@@ -25,7 +25,7 @@ Example usage:
   brew upgrade [FORMULA|CASK...]
   brew uninstall FORMULA|CASK...
   brew list [FORMULA|CASK...]
-...
+# ...
 ```
 
 ## Inspirations

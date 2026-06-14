@@ -73,7 +73,7 @@ while :; do
       exit 0
       ;;
     --verbose|--debug)
-    	SYSEXTBUDDY_DEBUG_MODE="1"
+      SYSEXTBUDDY_DEBUG_MODE="1"
       shift
       ;;
     -i | --install)
@@ -109,7 +109,7 @@ while :; do
         shift
         shift
       else
-      	invalid_args_die
+        invalid_args_die
       fi
       ;;
     --install-mode)
@@ -119,7 +119,7 @@ while :; do
         shift
         shift
       else
-      	invalid_args_die
+        invalid_args_die
       fi
       ;;
     -*)
@@ -132,7 +132,7 @@ while :; do
         SYSEXTBUDDY_TARGET_DIRECTORY="$1"
         shift
       else
-      	break
+        break
       fi
       ;;
   esac
@@ -164,25 +164,25 @@ fi
 
 SYSEXTBUDDY_TARGET_DIRECTORY="$(realpath "${SYSEXTBUDDY_TARGET_DIRECTORY}")"
 if [ ! -e "${SYSEXTBUDDY_TARGET_DIRECTORY}" ] ; then
-	printf "%s" "Failed finding accessing ${SYSEXTBUDDY_TARGET_DIRECTORY}" >&2
-	exit 1
+  printf "%s" "Failed finding accessing ${SYSEXTBUDDY_TARGET_DIRECTORY}" >&2
+  exit 1
 fi
 
 
 if [ -e "${SYSEXTBUDDY_TARGET_DIRECTORY}/usr" ] ; then
-	cp -r "${SYSEXTBUDDY_TARGET_DIRECTORY}/usr" "${SYSEXTBUDDY_WORKING_DIRECTORY}"
+  cp -r "${SYSEXTBUDDY_TARGET_DIRECTORY}/usr" "${SYSEXTBUDDY_WORKING_DIRECTORY}"
+else
+  install -dm0755 "${SYSEXTBUDDY_WORKING_DIRECTORY}/usr"
+  cp -r "${SYSEXTBUDDY_TARGET_DIRECTORY}/." "${SYSEXTBUDDY_WORKING_DIRECTORY}"
 fi
 
 if [ -e "${SYSEXTBUDDY_TARGET_DIRECTORY}/etc" ] ; then
-	cp -r "${SYSEXTBUDDY_TARGET_DIRECTORY}/etc" "${SYSEXTBUDDY_WORKING_DIRECTORY}"
-else
-	install -dm0755 "${SYSEXTBUDDY_WORKING_DIRECTORY}/usr"
-	cp -r "${SYSEXTBUDDY_TARGET_DIRECTORY}/." "${SYSEXTBUDDY_WORKING_DIRECTORY}"
+  cp -r "${SYSEXTBUDDY_TARGET_DIRECTORY}/etc" "${SYSEXTBUDDY_WORKING_DIRECTORY}"
 fi
 
 sysextbuddy_internal_id="_any"
 if [ "${SYSEXTBUDDY_SYSTEM_METADATA}" == 1 ] ; then
-	sysextbuddy_internal_id="$(sh -c '. /etc/os-release && printf %s $ID')"
+  sysextbuddy_internal_id="$(sh -c '. /etc/os-release && printf %s $ID')"
 fi
 
 install -dm0755 "${SYSEXTBUDDY_WORKING_DIRECTORY}/usr/lib/extension-release.d"
@@ -193,8 +193,8 @@ EOF
 
 if [ "${SYSEXTBUDDY_FORCE_SELINUX}" == 1 ] || [ -e /sys/fs/selinux/status ] ; then
   if ! [ -e "${SYSEXTBUDDY_SELINUX_CONTEXT_FILE}" ] ; then
-  	printf "%s" "ERROR: Could not find SELinux context file" >&2
-  	exit 1
+    printf "%s" "ERROR: Could not find SELinux context file" >&2
+    exit 1
   fi
   setfiles -r "${SYSEXTBUDDY_WORKING_DIRECTORY}" "${SYSEXTBUDDY_SELINUX_CONTEXT_FILE}" "${SYSEXTBUDDY_WORKING_DIRECTORY}"
   chcon --user=system_u --recursive "${SYSEXTBUDDY_WORKING_DIRECTORY}"
@@ -218,7 +218,7 @@ if [ "${SYSEXTBUDDY_INSTALL}" == 1 ] ; then
       ;;
   esac
 
-	run0 <<EOF
+  run0 <<EOF
 mkdir -p "${sysextbuddy_internal_install_location}"
 cp -f "${SYSEXTBUDDY_OUTPUT_FILE}" "${sysextbuddy_internal_install_location}"
 systemd-sysext refresh
