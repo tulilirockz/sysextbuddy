@@ -153,7 +153,7 @@ fi
 
 if [ "${SYSEXTBUDDY_OUTPUT_FILE}" == "" ] ; then
   SYSEXTBUDDY_OUTPUT_FILE="${SYSEXTBUDDY_SYSEXT_NAME}.raw"
-fi 
+fi
 
 if [ "${SYSEXTBUDDY_WORKING_DIRECTORY}" == "" ] ; then
   SYSEXTBUDDY_WORKING_DIRECTORY="$(mktemp -d)"
@@ -219,8 +219,9 @@ if [ "${SYSEXTBUDDY_INSTALL}" == 1 ] ; then
   esac
 
   run0 <<EOF
+umask 022
 mkdir -p "${sysextbuddy_internal_install_location}"
 cp -f "${SYSEXTBUDDY_OUTPUT_FILE}" "${sysextbuddy_internal_install_location}"
 systemd-sysext refresh
 EOF
-fi 
+fi
