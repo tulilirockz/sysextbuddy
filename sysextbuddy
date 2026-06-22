@@ -1,30 +1,9 @@
 #!/usr/bin/env bash
 
-set -eo pipefail
+set -euo pipefail
 
 SYSEXTBUDDY_VERSION=0.1.0
 SYSEXTBUDDY_BINARY_NAME=sysextbuddy
-
-invalid_args_die() {
-  printf >&2 "%s" "ERROR: Invalid number of arguments"
-  exit 1
-}
-
-invalid_args_check() {
-  USER_VALUE="${1}"
-  shift
-  INVALID=1
-  for expected_value in "${@}"; do
-    [ "${expected_value}" == "${USER_VALUE}" ] && INVALID=0
-  done
-
-  if [ "${INVALID}" == 1 ] ; then
-    printf >&2 "%s" "ERROR: Invalid argument specified for flag, expected: ${*}"
-    exit 1
-  fi
-}
-
-SYSEXTBUDDY_SELINUX_CONTEXT_FILE="${SYSEXTBUDDY_SELINUX_CONTEXT_FILE:-"/etc/selinux/targeted/contexts/files/file_contexts"}"
 
 show_help()
 {
@@ -52,6 +31,33 @@ Options:
 EOF
 }
 
+invalid_args_die() {
+  echo 'ERROR: Invalid number of arguments' >&2
+  show_help >&2
+  exit 1
+}
+
+too_many_args_die() {
+  echo 'ERROR: Too many positional arguments' >&2
+  show_help >&2
+  exit 1
+}
+
+invalid_args_check() {
+  local user_value="$1"
+  shift
+  local expected_value
+  for expected_value in "$@"; do
+    if [[ "${expected_value}" == "${user_value}" ]]; then
+      return 0
+    fi
+  done
+
+  echo "ERROR: Invalid argument specified for flag, expected one of: $*" >&2
+  return 1
+}
+
+SYSEXTBUDDY_SELINUX_CONTEXT_FILE="${SYSEXTBUDDY_SELINUX_CONTEXT_FILE:-"/etc/selinux/targeted/contexts/files/file_contexts"}"
 SYSEXTBUDDY_TARGET_DIRECTORY="${SYSEXTBUDDY_TARGET_DIRECTORY:-}"
 SYSEXTBUDDY_SYSEXT_NAME="${SYSEXTBUDDY_SYSEXT_NAME:-}"
 SYSEXTBUDDY_OUTPUT_FILE="${SYSEXTBUDDY_OUTPUT_FILE:-}"
@@ -62,138 +68,155 @@ SYSEXTBUDDY_DEBUG_MODE="${SYSEXTBUDDY_DEBUG_MODE:-0}"
 SYSEXTBUDDY_INSTALL="${SYSEXTBUDDY_INSTALL:-0}"
 SYSEXTBUDDY_INSTALL_MODE="${SYSEXTBUDDY_INSTALL_MODE:-ephemeral}"
 
-while :; do
-  case $1 in
-    -h | --help)
+positional_arguments=0
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
       show_help
       exit 0
       ;;
     --version)
-      printf "%s" "${SYSEXTBUDDY_BINARY_NAME}: ${SYSEXTBUDDY_VERSION}"
+      echo "${SYSEXTBUDDY_BINARY_NAME}: ${SYSEXTBUDDY_VERSION}"
       exit 0
       ;;
     --verbose|--debug)
-      SYSEXTBUDDY_DEBUG_MODE="1"
+      SYSEXTBUDDY_DEBUG_MODE='1'
       shift
       ;;
-    -i | --install)
-    	SYSEXTBUDDY_INSTALL="1"
+    -i|--install)
+    	SYSEXTBUDDY_INSTALL='1'
       shift
       ;;
     --working-directory)
-      SYSEXTBUDDY_WORKING_DIRECTORY="${2}"
-      shift
+      SYSEXTBUDDY_WORKING_DIRECTORY="${2-}"
+      shift 2 || invalid_args_die
+      ;;
+    --working-directory=*)
+      SYSEXTBUDDY_WORKING_DIRECTORY="${1#--working-directory=}"
       shift
       ;;
-    -n | --name)
-      SYSEXTBUDDY_SYSEXT_NAME="${2}"
-      shift
+    -n|--name)
+      SYSEXTBUDDY_SYSEXT_NAME="${2-}"
+      shift 2 || invalid_args_die
+      ;;
+    --name=*)
+      SYSEXTBUDDY_SYSEXT_NAME="${1#--name=}"
       shift
       ;;
-    -o | --output)
-      SYSEXTBUDDY_OUTPUT_FILE="${2}"
-      shift
+    -o|--output)
+      SYSEXTBUDDY_OUTPUT_FILE="${2-}"
+      shift 2 || invalid_args_die
+      ;;
+    --output=*)
+      SYSEXTBUDDY_OUTPUT_FILE="${1#--output=}"
       shift
       ;;
     --system)
-      SYSEXTBUDDY_SYSTEM_METADATA="1"
+      SYSEXTBUDDY_SYSTEM_METADATA='1'
       shift
       ;;
     --selinux)
-      SYSEXTBUDDY_FORCE_SELINUX="1"
+      SYSEXTBUDDY_FORCE_SELINUX='1'
       shift
       ;;
     --selinux-context)
-      if [ -n "${2}" ]; then
-        SYSEXTBUDDY_SELINUX_CONTEXT_FILE="$2"
-        shift
-        shift
-      else
-        invalid_args_die
-      fi
+      SYSEXTBUDDY_SELINUX_CONTEXT_FILE="${2-}"
+      shift 2 || invalid_args_die
+      ;;
+    --selinux-context=*)
+      SYSEXTBUDDY_SELINUX_CONTEXT_FILE="${1#--selinux-context=}"
+      shift
       ;;
     --install-mode)
-      if [ -n "${2}" ]; then
-        invalid_args_check "${2}" "ephemeral" "persistent" "confext"
-        SYSEXTBUDDY_SELINUX_CONTEXT_FILE="$2"
-        shift
-        shift
-      else
-        invalid_args_die
-      fi
+      SYSEXTBUDDY_SELINUX_CONTEXT_FILE="${2-}"
+      invalid_args_check "${SYSEXTBUDDY_SELINUX_CONTEXT_FILE}" "ephemeral" "persistent" "confext"
+      shift 2 || invalid_args_die
+      ;;
+    --install-mode=*)
+      SYSEXTBUDDY_SELINUX_CONTEXT_FILE="${1#--install-mode=}"
+      invalid_args_check "${SYSEXTBUDDY_SELINUX_CONTEXT_FILE}" "ephemeral" "persistent" "confext"
+      shift
+      ;;
+    --)
+      SYSEXTBUDDY_TARGET_DIRECTORY="${2-}"
+      shift 2 || invalid_args_die
+      (( ++positional_arguments ))
+      break
       ;;
     -*)
-      printf >&2 "ERROR: Invalid flag '%s'\n\n" "${1}"
-      show_help
+      printf "ERROR: Invalid flag '%s'\n\n" "$1" >&2
+      show_help >&2
       exit 1
       ;;
     *)
-      if [ -n "$1" ]; then
-        SYSEXTBUDDY_TARGET_DIRECTORY="$1"
-        shift
-      else
-        break
-      fi
+      SYSEXTBUDDY_TARGET_DIRECTORY="$1"
+      (( ++positional_arguments ))
+      shift
       ;;
   esac
 done
 
-if [ "${SYSEXTBUDDY_TARGET_DIRECTORY}" == "" ] ; then
-	show_help
+if (( positional_arguments + "$#" > 1 )); then
+  too_many_args_die
+fi
+
+if [[ -z "${SYSEXTBUDDY_TARGET_DIRECTORY}" ]]; then
+	show_help >&2
 	exit 1
 fi
 
-if [ "${SYSEXTBUDDY_DEBUG_MODE}" == "1" ] ; then
+if [[ "${SYSEXTBUDDY_DEBUG_MODE}" == '1' ]] ; then
 	set -x
 fi
 
-if [ "${SYSEXTBUDDY_SYSEXT_NAME}" == "" ] ; then
+if [[ -z "${SYSEXTBUDDY_SYSEXT_NAME}" ]]; then
   SYSEXTBUDDY_SYSEXT_NAME="$(basename "${SYSEXTBUDDY_TARGET_DIRECTORY}")"
 fi
 
-if [ "${SYSEXTBUDDY_OUTPUT_FILE}" == "" ] ; then
+if [[ -z "${SYSEXTBUDDY_OUTPUT_FILE}" ]]; then
   SYSEXTBUDDY_OUTPUT_FILE="${SYSEXTBUDDY_SYSEXT_NAME}.raw"
 fi
 
-if [ "${SYSEXTBUDDY_WORKING_DIRECTORY}" == "" ] ; then
-  SYSEXTBUDDY_WORKING_DIRECTORY="$(mktemp -d)"
-  if [ "${SYSEXTBUDDY_DEBUG_MODE}" == 0 ] ; then
-	  trap 'rm -r $SYSEXTBUDDY_WORKING_DIRECTORY' EXIT
+if [[ -z "${SYSEXTBUDDY_WORKING_DIRECTORY}" ]]; then
+  SYSEXTBUDDY_WORKING_DIRECTORY="$(mktemp -d --tmpdir 'sysextbuddy-tmp-XXXXXXXXXX')"
+  if [[ "${SYSEXTBUDDY_DEBUG_MODE}" == 0 ]]; then
+	  trap 'rm -r "${SYSEXTBUDDY_WORKING_DIRECTORY}"' EXIT
 	fi
 fi
 
 SYSEXTBUDDY_TARGET_DIRECTORY="$(realpath "${SYSEXTBUDDY_TARGET_DIRECTORY}")"
-if [ ! -e "${SYSEXTBUDDY_TARGET_DIRECTORY}" ] ; then
-  printf "%s" "Failed finding accessing ${SYSEXTBUDDY_TARGET_DIRECTORY}" >&2
+if [[ ! -e "${SYSEXTBUDDY_TARGET_DIRECTORY}" ]]; then
+  echo "Target directory not found: ${SYSEXTBUDDY_TARGET_DIRECTORY}" >&2
   exit 1
 fi
 
 
-if [ -e "${SYSEXTBUDDY_TARGET_DIRECTORY}/usr" ] ; then
+if [[ -e "${SYSEXTBUDDY_TARGET_DIRECTORY}/usr" ]]; then
   cp -r "${SYSEXTBUDDY_TARGET_DIRECTORY}/usr" "${SYSEXTBUDDY_WORKING_DIRECTORY}"
 else
   install -dm0755 "${SYSEXTBUDDY_WORKING_DIRECTORY}/usr"
   cp -r "${SYSEXTBUDDY_TARGET_DIRECTORY}/." "${SYSEXTBUDDY_WORKING_DIRECTORY}"
 fi
 
-if [ -e "${SYSEXTBUDDY_TARGET_DIRECTORY}/etc" ] ; then
+if [[ -e "${SYSEXTBUDDY_TARGET_DIRECTORY}/etc" ]]; then
   cp -r "${SYSEXTBUDDY_TARGET_DIRECTORY}/etc" "${SYSEXTBUDDY_WORKING_DIRECTORY}"
 fi
 
-sysextbuddy_internal_id="_any"
-if [ "${SYSEXTBUDDY_SYSTEM_METADATA}" == 1 ] ; then
-  sysextbuddy_internal_id="$(sh -c '. /etc/os-release && printf %s $ID')"
+sysext_id_line='ID="_any"'
+if [[ "${SYSEXTBUDDY_SYSTEM_METADATA}" == 1 ]]; then
+  sysext_id_line="$(grep -m 1 '^ID=' /etc/os-release)"
 fi
+sysext_architecture="$(uname -m | tr '_' '-')"
 
 install -dm0755 "${SYSEXTBUDDY_WORKING_DIRECTORY}/usr/lib/extension-release.d"
 cat > "${SYSEXTBUDDY_WORKING_DIRECTORY}/usr/lib/extension-release.d/extension-release.${SYSEXTBUDDY_SYSEXT_NAME}" <<EOF
-ID="${sysextbuddy_internal_id}"
-ARCHITECTURE="$(uname -m | tr '_' '-')"
+${sysext_id_line}
+ARCHITECTURE="${sysext_architecture}"
 EOF
 
-if [ "${SYSEXTBUDDY_FORCE_SELINUX}" == 1 ] || [ -e /sys/fs/selinux/status ] ; then
-  if ! [ -e "${SYSEXTBUDDY_SELINUX_CONTEXT_FILE}" ] ; then
-    printf "%s" "ERROR: Could not find SELinux context file" >&2
+if [[ "${SYSEXTBUDDY_FORCE_SELINUX}" == 1 || -e '/sys/fs/selinux/status' ]]; then
+  if [[ ! -e "${SYSEXTBUDDY_SELINUX_CONTEXT_FILE}" ]]; then
+    echo 'ERROR: Could not find SELinux context file' >&2
     exit 1
   fi
   setfiles -r "${SYSEXTBUDDY_WORKING_DIRECTORY}" "${SYSEXTBUDDY_SELINUX_CONTEXT_FILE}" "${SYSEXTBUDDY_WORKING_DIRECTORY}"
@@ -202,19 +225,19 @@ fi
 
 mkfs.erofs "${SYSEXTBUDDY_OUTPUT_FILE}" "${SYSEXTBUDDY_WORKING_DIRECTORY}" >/dev/null
 
-echo "INFO: Sysext generated successfully at $(realpath "${SYSEXTBUDDY_OUTPUT_FILE}")"
+output_file_path="$(realpath "${SYSEXTBUDDY_OUTPUT_FILE}")"
+echo "INFO: Sysext generated successfully at ${output_file_path}"
 
-if [ "${SYSEXTBUDDY_INSTALL}" == 1 ] ; then
-  sysextbuddy_internal_install_location="/run/extensions"
+if [[ "${SYSEXTBUDDY_INSTALL}" == 1 ]]; then
   case "${SYSEXTBUDDY_INSTALL_MODE}" in
-    "confext")
-      sysextbuddy_internal_install_location="/etc/extensions"
+    confext)
+      sysextbuddy_internal_install_location='/etc/extensions'
       ;;
-    "persistent")
-      sysextbuddy_internal_install_location="/var/lib/extensions"
+    persistent)
+      sysextbuddy_internal_install_location='/var/lib/extensions'
       ;;
     *)
-      sysextbuddy_internal_install_location="/run/extensions"
+      sysextbuddy_internal_install_location='/run/extensions'
       ;;
   esac
 
