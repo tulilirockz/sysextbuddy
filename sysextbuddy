@@ -22,7 +22,7 @@ Options:
 	--verbose/--debug:		Show more verbosity (default: false)
 	--system:			Force sysext to be system specific (default: false)
 	--selinux:			Force SELinux support for sysext (default: true)
-	--selinux-context-file:		Context file for SELinux file context definitions (default: ${SYSEXTBUDDY_SELINUX_CONTEXT_FILE})
+	--selinux-context:		Context file for SELinux file context definitions (default: ${SYSEXTBUDDY_SELINUX_CONTEXT_FILE})
 	-i/--install:			Install sysext after generation (default: false)
 	--install-mode:			Where to install sysexts if installation is enabled (default: ephemeral) (ephemeral, persistent, confext)
 	--version:			Show version
